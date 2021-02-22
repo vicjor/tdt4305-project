@@ -1,4 +1,9 @@
 import base64
+from datetime import datetime as dt
+
+
+def str_to_time(datestring):
+    return dt.strptime(datestring, "%Y-%m-%d %H:%M:%S")
 
 
 def task2(sc):
@@ -25,7 +30,7 @@ def task2(sc):
 
     print("Questions: {}".format(questions.count()))
     print("Answers: {}".format(answers.count()))
-    print("Comments: {}".format(comments.count()))
+    print("Comments: {}\n".format(comments.count()))
 
     # Decode Q and A's with base64 decoding and strip strings of HTML tags.
     decoded_answers = answers.map(lambda line: str(base64.b64decode(line[5]), "utf-8")).map(
@@ -44,4 +49,16 @@ def task2(sc):
 
     print("Average answer length: {} characters".format(int(avg_answer_length)))
     print("Average question length: {} characters".format(int(avg_queston_length)))
-    print("Average comment length: {} characters".format(int(avg_comment_length)))
+    print("Average comment length: {} characters\n".format(int(avg_comment_length)))
+
+    # Task 2.2 Find the dates when the first and the last questions were asked. Also, find the display
+    # name of users who posted those questions
+
+    # Use str_to_time to convert string to date object and compare each object with each other to find min/max
+    newest_question = questions.reduce(
+        lambda a, b: a if str_to_time(a[2]) > str_to_time(b[2]) else b)
+    oldest_question = questions.reduce(
+        lambda a, b: a if str_to_time(a[2]) < str_to_time(b[2]) else b)
+
+    print("Newest question: {}".format(newest_question))
+    print("Oldest question: {}".format(oldest_question))
