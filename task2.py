@@ -21,6 +21,9 @@ def task2(sc):
     posts_file = sc.textFile(folder_name + posts_file_name)
     posts_rdd = posts_file.map(lambda line: line.split("\t"))
 
+    badges_file = sc.textFile(folder_name + badges_file_name)
+    badges_rdd = badges_file.map(lambda line: line.split("\t"))
+
     comment_header = sc.textFile(folder_name + comments_file_name).first()
     comments_file = sc.textFile(folder_name + comments_file_name)
     comments_no_header = comments_file.filter(lambda line: not str(line).startswith(comment_header))
@@ -74,11 +77,17 @@ def task2(sc):
     most_answers = answers.groupBy(lambda line: line[6]).map(lambda x: (
         x[0], len(list(x[1])))).sortBy(lambda x: x[1]).reduce(lambda a, b: a if a[1] > b[1] else b)
     # UserId for user with most questions is NULL. Therefore filter UserIDs on predicate not NULL.
+    # Different approach to perform same operations on the questions, using reduceByKey.
     most_questions = questions.map(lambda a: (a[6], 1)).filter(lambda x: x[0] != "NULL")\
         .reduceByKey(lambda a, b: a + b).sortBy(lambda x: x[1]).reduce(lambda a, b: a if a[1] > b[1] else b)
 
-
     print("UserID for user with the most answers: {}\nNumber of answers: {}\n\n".format(
         most_answers[0], most_answers[1]))
-    print("UserID for user with the most questions: {}\nNumber of questions: {}".format(
+    print("UserID for user with the most questions: {}\nNumber of questions: {}\n".format(
         most_questions[0], most_questions[1]))
+
+    # Map badges into (UserID, counter), reduce by key to count number of occurences for each user and then filter < 3
+    less_than_three_badges = badges_rdd.map(lambda badge: (badge[0], 1)).reduceByKey(
+        lambda a, b: a + b).filter(lambda x: x[1] < 3)
+
+    print("Users with less than three badges: {}".format(less_than_three_badges.count()))
