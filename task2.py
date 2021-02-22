@@ -42,6 +42,6 @@ def task2(sc):
     avg_queston_length = question_length.reduce(lambda a, b: a+b)/question_length.count()
     avg_comment_length = comment_length.reduce(lambda a, b: a+b)/comment_length.count()
 
-    print("Average answer length: {}".format(avg_answer_length))
-    print("Average question length: {}".format(avg_queston_length))
-    print("Average comment length: {}".format(avg_comment_length))
+    print("Average answer length: {} characters".format(int(avg_answer_length)))
+    print("Average question length: {} characters".format(int(avg_queston_length)))
+    print("Average comment length: {} characters".format(int(avg_comment_length)))
