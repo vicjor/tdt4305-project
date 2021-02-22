@@ -74,8 +74,9 @@ def task2(sc):
     most_answers = answers.groupBy(lambda line: line[6]).map(lambda x: (
         x[0], len(list(x[1])))).sortBy(lambda x: x[1]).reduce(lambda a, b: a if a[1] > b[1] else b)
     # UserId for user with most questions is NULL. Therefore filter UserIDs on predicate not NULL.
-    most_questions = questions.groupBy(lambda line: line[6]).filter(lambda x: x[0] != "NULL").map(lambda x: (
-        x[0], len(list(x[1])))).sortBy(lambda x: x[1]).reduce(lambda a, b: a if a[1] > b[1] else b)
+    most_questions = questions.map(lambda a: (a[6], 1)).filter(lambda x: x[0] != "NULL")\
+        .reduceByKey(lambda a, b: a + b).sortBy(lambda x: x[1]).reduce(lambda a, b: a if a[1] > b[1] else b)
+
 
     print("UserID for user with the most answers: {}\nNumber of answers: {}\n\n".format(
         most_answers[0], most_answers[1]))
