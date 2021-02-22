@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime as dt
+import math
 
 
 def str_to_time(datestring):
@@ -8,6 +9,25 @@ def str_to_time(datestring):
 
 def get_user_post_count(posts, post, user):
     return posts.filter(lambda a: a[6] == user[0]).count()
+
+
+def pearson_corr(users):
+    upvotes = users.map(lambda x: x[7])
+    downvotes = users.map(lambda x: x[8])
+
+    average_upvotes = upvotes.reduce(lambda x, y: int(x) + int(y))/upvotes.count()
+    average_downvotes = downvotes.reduce(lambda x, y: int(x) + int(y))/downvotes.count()
+
+    upvotes_list = upvotes.collect()
+    downvotes_list = downvotes.collect()
+
+    teller = sum([(int(upvotes_list[i])-average_upvotes) * (int(downvotes_list[i]) -
+                                                            average_downvotes) for i in range(len(upvotes_list))])
+
+    std_upvotes = math.sqrt(sum([(int(x) - average_upvotes)**2 for x in upvotes_list]))
+    std_downvotes = math.sqrt(sum([(int(x) - average_downvotes)**2 for x in downvotes_list]))
+
+    return teller / (std_upvotes*std_downvotes)
 
 
 def task2(sc):
@@ -29,8 +49,10 @@ def task2(sc):
     comments_no_header = comments_file.filter(lambda line: not str(line).startswith(comment_header))
     comments = comments_no_header.map(lambda line: line.split("\t"))
 
+    users_header = sc.textFile(folder_name + users_file_name).first()
     users_file = sc.textFile(folder_name + users_file_name)
-    users_rdd = users_file.map(lambda line: line.split("\t"))
+    users_no_header = users_file.filter(lambda line: not str(line).startswith(users_header))
+    users_rdd = users_no_header.map(lambda line: line.split("\t"))
 
     questions = posts_rdd.filter(lambda line: line[1] == "1")
     answers = posts_rdd.filter(lambda line: line[1] == "2")
@@ -91,3 +113,7 @@ def task2(sc):
         lambda a, b: a + b).filter(lambda x: x[1] < 3)
 
     print("Users with less than three badges: {}".format(less_than_three_badges.count()))
+
+    # Task 2.5: Calculate the Pearson correlation coefficient (or Pearson’s r) between the number of upvotes and downvotes cast by a user.
+
+    print("\nPearson correlation coefficient: {}".format(round(pearson_corr(users_rdd), 3)))
