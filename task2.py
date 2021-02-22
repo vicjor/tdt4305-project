@@ -29,6 +29,11 @@ def pearson_corr(users):
 
     return teller / (std_upvotes*std_downvotes)
 
+def entropy(comments):
+    user_in_comments = comments.map(lambda a: (a[4], 1)).reduceByKey(lambda a, b: a + b).collect()
+    length_comments = len(comments.collect())
+    return -sum([(user_in_comments[i][1] / length_comments)*math.log(user_in_comments[i][1] / length_comments, 2) for i in range(len(user_in_comments))])
+
 
 def task2(sc):
     folder_name = "./data/"
@@ -117,3 +122,8 @@ def task2(sc):
     # Task 2.5: Calculate the Pearson correlation coefficient (or Pearson’s r) between the number of upvotes and downvotes cast by a user.
 
     print("\nPearson correlation coefficient: {}".format(round(pearson_corr(users_rdd), 3)))
+
+    # Task 2.6: Calculate the entropy of id of users (that is UserId column from comments data) who
+    # wrote one or more comments.
+
+    print("\nEntropy: {}".format(round(entropy(comments), 3)))
