@@ -6,6 +6,10 @@ def str_to_time(datestring):
     return dt.strptime(datestring, "%Y-%m-%d %H:%M:%S")
 
 
+def get_user_post_count(posts, post, user):
+    return posts.filter(lambda a: a[6] == user[0]).count()
+
+
 def task2(sc):
     folder_name = "./data/"
     posts_file_name = "posts.csv.gz"
@@ -60,5 +64,20 @@ def task2(sc):
     oldest_question = questions.reduce(
         lambda a, b: a if str_to_time(a[2]) < str_to_time(b[2]) else b)
 
-    print("Newest question: {}".format(newest_question))
-    print("Oldest question: {}".format(oldest_question))
+    print("Newest question: {}".format(newest_question[2]))
+    print("Oldest question: {}\n".format(oldest_question[2]))
+
+    # Task 2.3 Find the ids of users who wrote the greatest number of answers and questions. Ignore
+    # the user with OwnerUserId equal to -1
+
+    # Group posts by UserId, then count number of posts for each user and reduce to find the userId with the most answers
+    most_answers = answers.groupBy(lambda line: line[6]).map(lambda x: (
+        x[0], len(list(x[1])))).sortBy(lambda x: x[1]).reduce(lambda a, b: a if a[1] > b[1] else b)
+    # UserId for user with most questions is NULL. Therefore filter UserIDs on predicate not NULL.
+    most_questions = questions.groupBy(lambda line: line[6]).filter(lambda x: x[0] != "NULL").map(lambda x: (
+        x[0], len(list(x[1])))).sortBy(lambda x: x[1]).reduce(lambda a, b: a if a[1] > b[1] else b)
+
+    print("UserID for user with the most answers: {}\nNumber of answers: {}\n\n".format(
+        most_answers[0], most_answers[1]))
+    print("UserID for user with the most questions: {}\nNumber of questions: {}".format(
+        most_questions[0], most_questions[1]))
