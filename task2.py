@@ -1,6 +1,7 @@
 import base64
 from datetime import datetime as dt
 import math
+from constants import *
 
 
 def str_to_time(datestring):
@@ -34,19 +35,19 @@ def task2(sc):
     badges_file_name = "badges.csv.gz"
 
     # Create RDDs for posts, comments, users and badges
-    posts_file = sc.textFile(folder_name + posts_file_name)
+    posts_file = sc.textFile(FOLDER_NAME + POSTS_FILE_NAME)
     posts_rdd = posts_file.map(lambda line: line.split("\t"))
 
-    badges_file = sc.textFile(folder_name + badges_file_name)
+    badges_file = sc.textFile(FOLDER_NAME + BADGES_FILE_NAME)
     badges_rdd = badges_file.map(lambda line: line.split("\t"))
 
-    comment_header = sc.textFile(folder_name + comments_file_name).first()
-    comments_file = sc.textFile(folder_name + comments_file_name)
+    comment_header = sc.textFile(FOLDER_NAME + COMMENTS_FILE_NAME).first()
+    comments_file = sc.textFile(FOLDER_NAME + COMMENTS_FILE_NAME)
     comments_no_header = comments_file.filter(lambda line: not str(line).startswith(comment_header))
     comments = comments_no_header.map(lambda line: line.split("\t"))
 
-    users_header = sc.textFile(folder_name + users_file_name).first()
-    users_file = sc.textFile(folder_name + users_file_name)
+    users_header = sc.textFile(FOLDER_NAME + users_file_name).first()
+    users_file = sc.textFile(FOLDER_NAME + users_file_name)
     users_no_header = users_file.filter(lambda line: not str(line).startswith(users_header))
     users_rdd = users_no_header.map(lambda line: line.split("\t"))
 
