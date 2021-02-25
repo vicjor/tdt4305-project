@@ -3,6 +3,10 @@ from task2 import task2
 from task3 import task3
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
+import sys
+
+# arg = sys.argv.pop()
+# print(arg)
 
 
 def init_spark():

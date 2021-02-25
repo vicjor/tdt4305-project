@@ -26,6 +26,7 @@ def pearson_corr(users):
 
     return teller / (std_upvotes*std_downvotes)
 
+
 def entropy(comments):
     user_in_comments = comments.map(lambda a: (a[4], 1)).reduceByKey(lambda a, b: a + b).collect()
     length_comments = len(comments.collect())
@@ -33,12 +34,6 @@ def entropy(comments):
 
 
 def task2(sc):
-    folder_name = "./data/"
-    posts_file_name = "posts.csv.gz"
-    users_file_name = "users.csv.gz"
-    comments_file_name = "comments.csv.gz"
-    badges_file_name = "badges.csv.gz"
-
     # Create RDDs for posts, comments, users and badges
     posts_file = sc.textFile(FOLDER_NAME + POSTS_FILE_NAME)
     posts_rdd = posts_file.map(lambda line: line.split("\t"))
@@ -51,8 +46,8 @@ def task2(sc):
     comments_no_header = comments_file.filter(lambda line: not str(line).startswith(comment_header))
     comments = comments_no_header.map(lambda line: line.split("\t"))
 
-    users_header = sc.textFile(FOLDER_NAME + users_file_name).first()
-    users_file = sc.textFile(FOLDER_NAME + users_file_name)
+    users_header = sc.textFile(FOLDER_NAME + USERS_FILE_NAME).first()
+    users_file = sc.textFile(FOLDER_NAME + USERS_FILE_NAME)
     users_no_header = users_file.filter(lambda line: not str(line).startswith(users_header))
     users_rdd = users_no_header.map(lambda line: line.split("\t"))
 
