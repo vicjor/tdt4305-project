@@ -7,10 +7,6 @@ def str_to_time(datestring):
     return dt.strptime(datestring, "%Y-%m-%d %H:%M:%S")
 
 
-def get_user_post_count(posts, post, user):
-    return posts.filter(lambda a: a[6] == user[0]).count()
-
-
 def pearson_corr(users):
     upvotes = users.map(lambda x: x[7])
     downvotes = users.map(lambda x: x[8])

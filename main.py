@@ -1,17 +1,23 @@
-import task1
-import task2
-import task3
+from task1 import task1
+from task2 import task2
+from task3 import task3
 from pyspark import SparkContext, SparkConf
+from pyspark.sql import SparkSession
+
+
+def init_spark():
+    spark = SparkSession.builder.appName("Big Data Project 2021").getOrCreate()
+    sc = spark.sparkContext
+    return spark, sc
 
 
 if __name__ == "__main__":
-    sparkConf = SparkConf().setAppName("Big Data Project 2021").setMaster("local")
-    sc = SparkContext(conf=sparkConf)
+    spark, sc = init_spark()
     while True:
-        task = input("Which task do you want to run? (1-3) ")
+        task = input("\nWhich task do you want to run? (1-3) ")
         if task == "1":
-            task1.task1(sc)
+            task1(sc)
         elif task == "2":
-            task2.task2(sc)
+            task2(sc)
         elif task == "3":
-            task3.task3(sc)
+            task3(spark, sc)
