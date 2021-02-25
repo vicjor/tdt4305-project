@@ -69,7 +69,7 @@ def task3(spark, sc):
 
     # Find the user ids of top 10 users who wrote the most comments
 
-    print(spark.sql("SELECT CommentOwnerId, SUM(Weight) as CO FROM users GROUP BY CommentOwnerId ORDER BY CO DESC").show())
+    print(spark.sql("SELECT CommentOwnerId, SUM(Weight) as Amount_of_comments FROM users GROUP BY CommentOwnerId ORDER BY Amount_of_comments DESC LIMIT 10").show())
 
     return
 
