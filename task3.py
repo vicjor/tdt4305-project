@@ -1,4 +1,5 @@
 from constants import *
+from pyspark.sql.types import ArrayType, StructField, StructType, StringType, IntegerType, DecimalType
 
 # Create a graph of posts and comments.
 # Nodes are users, and there is an edge from node 𝑖 to node 𝑗 if 𝑖 wrote a comment for 𝑗’s post.
@@ -54,11 +55,19 @@ def task3(spark, sc):
     print("\nFirst 10 edges in graph: {}\n".format(graph.take(10)))
 
     # Convert the result of the previous step into a Spark DataFrame (DF) and answer the following subtasks using DataFrame API, namely using Spark SQL
-    # graphDF = graph.toDF()
-    # graphDF.withColumnRenamed(
-    #     _1, "(CommentOwnerId, PostOwnerId)").withColumnRenamed(_2, "Weight")
-    # graphDF.createOrReplaceTempView("users")
+
+    temp_graph = graph.map(lambda row: (row[0][0], row[0][1], row[1]))
+    print(temp_graph.take(1))
+    schema = StructType([
+        StructField('CommentOwnerId', StringType(), False),
+        StructField('PostOwnerId', StringType(), False),
+        StructField('Weight', IntegerType(), False),
+    ])
+    graphDF = spark.createDataFrame(temp_graph, schema)
+    graphDF.createOrReplaceTempView("users")
     print(spark.sql("SELECT * from users LIMIT 10").show())
+
+    # Find the user ids of top 10 users who wrote the most comments
 
     return
 
