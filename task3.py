@@ -5,41 +5,61 @@ from constants import *
 # Each edge has a weight 𝑤𝑖𝑗 that is the number of times 𝑖 has commented a post by 𝑗
 
 
+class Node:
+    def __init__(self, user) -> None:
+        self.user1 = int(user)
+
+    def increment_weight(self):
+        self.weight += 1
+
+    def set_user2(self, user2):
+        self.user2 = int(user2)
+        self.weight = 1
+
+    def get_weight(self):
+        return self.weight
+
+    def get_user1(self):
+        return self.user
+
+    def get_user2(self):
+        return self.user2
+
+
 def task3(spark, sc):
     posts_file = sc.textFile(FOLDER_NAME + POSTS_FILE_NAME)
-    posts_rdd = posts_file.map(lambda line: line.split("\t"))
+    posts_rdd = posts_file.map(lambda line: line.split(
+        "\t")).filter(lambda post: post[0] != '"Id"')
 
-    comment_header = sc.textFile(FOLDER_NAME + COMMENTS_FILE_NAME).first()
     comments_file = sc.textFile(FOLDER_NAME + COMMENTS_FILE_NAME)
-    comments_no_header = comments_file.filter(lambda line: not str(line).startswith(comment_header))
     # comments = (PostId, UserId)
-    comments = comments_no_header.map(lambda line: line.split(
-        "\t")).map(lambda comment: (comment[0], comment[4]))
+    comments = comments_file.map(lambda line: line.split(
+        "\t")).filter(lambda comment: comment[0] != '"PostId"').map(lambda comment: (comment[0], comment[4]))
 
     # CommentCount is col no. 11 in csv
-    # Filter all posts without comments, map to (PostId, OwnerUserId, CommentCount)
+    # Filter all posts without comments, map to (PostId, OwnerUserId)
     posts_with_comments = posts_rdd.filter(lambda post: post[11] != "0").map(
-        lambda post: (post[0], post[6], post[11]))
+        lambda post: (post[0], post[6]))
 
-    # graph = [ [OwnerUserId, CommentUserId, weight] ]
-    graph = []
-    print(posts_with_comments.count())
+    # (PostId, (OwnerUserId, CommentUserId))
+    posts_and_comment = comments.join(posts_with_comments)
 
-    comment_list = comments.collect()
-    # for comment in comment_list:
-    #     if comment[0] in post_ids:
-    #         if comment[1] in graph:
-    #             graph
-    # usersDF = spark.read.csv(FOLDER_NAME + "users.csv", header=True, sep="\t")
-    # usersDF.createOrReplaceTempView("users")
-    # print(spark.sql("SELECT * FROM users LIMIT 5").show())
+    # (CommentUserId, OwnerUserId)
+    commentid_ownerid = posts_and_comment.map(lambda post: (post[1][0], post[1][1]))
+
+    # Add weight (count comments from i to j) :     (CommentUserId, (OwnerUserId, Weight))
+    graph = commentid_ownerid.map(lambda row: (
+        row, 1)).reduceByKey(lambda a, b: a+b)
+
+    print("\nFirst 10 edges in graph: {}\n".format(graph.take(10)))
+
+    # Convert the result of the previous step into a Spark DataFrame (DF) and answer the following subtasks using DataFrame API, namely using Spark SQL
+    # graphDF = graph.toDF()
+    # graphDF.withColumnRenamed(
+    #     _1, "(CommentOwnerId, PostOwnerId)").withColumnRenamed(_2, "Weight")
+    # graphDF.createOrReplaceTempView("users")
+    print(spark.sql("SELECT * from users LIMIT 10").show())
+
     return
 
 # (user_I, , user_J, #comments)
-
-
-class Node:
-    def __init__(self, user1, user2, weight) -> None:
-        self.user1 = user1
-        self.user2 = user2
-        self.weight = weight
