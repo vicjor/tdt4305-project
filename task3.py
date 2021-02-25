@@ -67,9 +67,34 @@ def task3(spark, sc):
     graphDF.createOrReplaceTempView("users")
     print(spark.sql("SELECT * from users LIMIT 10").show())
 
-    # Find the user ids of top 10 users who wrote the most comments
+    # Task 3.3 Find the user ids of top 10 users who wrote the most comments
 
     print(spark.sql("SELECT CommentOwnerId, SUM(Weight) as Amount_of_comments FROM users GROUP BY CommentOwnerId ORDER BY Amount_of_comments DESC LIMIT 10").show())
+
+    # Task 3.4 Find the display names of top 10 users who their posts received the greatest number
+    # of comments.
+
+    # First dataframe
+    userIds_with_most_comments = spark.sql("SELECT PostOwnerId, SUM(Weight) as Amount_of_comments_received FROM users GROUP BY PostOwnerId ORDER BY Amount_of_comments_received DESC LIMIT 10")
+
+    users_header = sc.textFile(FOLDER_NAME + USERS_FILE_NAME).first()
+    users_file = sc.textFile(FOLDER_NAME + USERS_FILE_NAME)
+    users_no_header = users_file.filter(lambda line: not str(line).startswith(users_header))
+    users_rdd = users_no_header.map(lambda line: line.split("\t"))
+
+    users = users_rdd.map(lambda x: (x[0], x[3]))
+    schemaUsers = StructType([
+        StructField('UserId', StringType(), False),
+        StructField('Username', StringType(), False),
+    ])
+
+    # Second dataframe
+    usersDF = spark.createDataFrame(users, schemaUsers)
+
+    # First dataframe loaded into second dataframe
+    resultDF = userIds_with_most_comments.join(usersDF, userIds_with_most_comments.PostOwnerId == usersDF.UserId).drop(userIds_with_most_comments.PostOwnerId)
+    resultDF.show()
+
 
     return
 
