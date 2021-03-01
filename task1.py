@@ -1,7 +1,7 @@
 from constants import *
 
 
-def task1(sc, dataset):
+def task1(dataset):
     print("Loading data into RDDs...\n")
     # Create RDDs for posts, comments, users and badges
 

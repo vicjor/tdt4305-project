@@ -31,9 +31,9 @@ def main():
         rdd = sc.textFile(dataset_path + "/" + data).map(lambda line: line.split("\t"))
         dataset[data] = rdd
 
-    task1(sc, dataset)
-    task2(sc, dataset)
-    task3(spark, sc, dataset)
+    task1(dataset)
+    task2(dataset)
+    task3(spark, dataset)
     # try:
     #     graph = spark.read.csv("graph.csv")
     #     print("First five rows of graph: ")

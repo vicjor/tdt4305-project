@@ -4,7 +4,7 @@ from pyspark.sql import Row
 import os
 
 
-def task3(spark, sc, dataset):
+def task3(spark, dataset):
     # Task 3.1:
     # Create a graph of posts and comments.
     # Nodes are users, and there is an edge from node 𝑖 to node 𝑗 if 𝑖 wrote a comment for 𝑗’s post.
@@ -77,8 +77,6 @@ def task3(spark, sc, dataset):
     try:
         graphDF.repartition(1).write.option("header", "true").format(
             "com.databricks.spark.csv").save("graph.csv")
-        # graphDF.repartition(1).write.format('com.databricks.spark.csv').save(
-        #     os.getcwd()+"/graph.csv", header='true')
         print("The graph has been saved as 'graph.csv' in {}".format(os.getcwd()))
     except:
         print("Tried to save 'graph.csv' to {} but file already exists.".format(os.getcwd()))

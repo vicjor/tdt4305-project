@@ -13,22 +13,27 @@ def pearson_corr(users):
     downvotes = users.map(lambda x: x[8])
     average_upvotes = upvotes.reduce(lambda x, y: int(x) + int(y))/upvotes.count()
     average_downvotes = downvotes.reduce(lambda x, y: int(x) + int(y))/downvotes.count()
-    upvotes_list = upvotes.collect()
-    downvotes_list = downvotes.collect()
-    teller = sum([(int(upvotes_list[i])-average_upvotes) * (int(downvotes_list[i]) -
-                                                            average_downvotes) for i in range(len(upvotes_list))])
-    std_upvotes = math.sqrt(sum([(int(x) - average_upvotes)**2 for x in upvotes_list]))
-    std_downvotes = math.sqrt(sum([(int(x) - average_downvotes)**2 for x in downvotes_list]))
-    return teller / (std_upvotes*std_downvotes)
+
+    teller = users.map(lambda upvote: (
+        int(upvote[7]) - average_upvotes) * (int(upvote[8]) - average_downvotes)).reduce(lambda a, b: a+b)
+
+    std_upvotes = users.map(lambda x: (
+        int(x[7]) - average_upvotes)**2).reduce(lambda a, b: a+b)**0.5
+    std_downvotes = users.map(lambda x: (
+        int(x[8]) - average_downvotes)**2).reduce(lambda a, b: a+b)**0.5
+    nevner = std_upvotes*std_downvotes
+
+    return teller / nevner
 
 
 def entropy(comments):
-    user_in_comments = comments.map(lambda a: (a[4], 1)).reduceByKey(lambda a, b: a + b).collect()
-    length_comments = len(comments.collect())
-    return -sum([(user_in_comments[i][1] / length_comments)*math.log(user_in_comments[i][1] / length_comments, 2) for i in range(len(user_in_comments))])
+    user_in_comments = comments.map(lambda a: (a[4], 1)).reduceByKey(lambda a, b: a + b)
+    length_comments = comments.count()
+    return -user_in_comments.map(lambda x: x[1] / length_comments *
+                                 math.log(x[1] / length_comments, 2)).reduce(lambda a, b: a+b)
 
 
-def task2(sc, dataset):
+def task2(dataset):
     # Create RDDs for posts, comments, users and badges
 
     posts_rdd = dataset[POSTS_FILE_NAME]
