@@ -1,5 +1,6 @@
-FOLDER_NAME = "./data/"
+# Global constants
 POSTS_FILE_NAME = "posts.csv.gz"
 USERS_FILE_NAME = "users.csv.gz"
 COMMENTS_FILE_NAME = "comments.csv.gz"
 BADGES_FILE_NAME = "badges.csv.gz"
+DATASET_FILES = [POSTS_FILE_NAME, USERS_FILE_NAME, COMMENTS_FILE_NAME, BADGES_FILE_NAME]

@@ -11,19 +11,14 @@ def str_to_time(datestring):
 def pearson_corr(users):
     upvotes = users.map(lambda x: x[7])
     downvotes = users.map(lambda x: x[8])
-
     average_upvotes = upvotes.reduce(lambda x, y: int(x) + int(y))/upvotes.count()
     average_downvotes = downvotes.reduce(lambda x, y: int(x) + int(y))/downvotes.count()
-
     upvotes_list = upvotes.collect()
     downvotes_list = downvotes.collect()
-
     teller = sum([(int(upvotes_list[i])-average_upvotes) * (int(downvotes_list[i]) -
                                                             average_downvotes) for i in range(len(upvotes_list))])
-
     std_upvotes = math.sqrt(sum([(int(x) - average_upvotes)**2 for x in upvotes_list]))
     std_downvotes = math.sqrt(sum([(int(x) - average_downvotes)**2 for x in downvotes_list]))
-
     return teller / (std_upvotes*std_downvotes)
 
 
@@ -33,37 +28,28 @@ def entropy(comments):
     return -sum([(user_in_comments[i][1] / length_comments)*math.log(user_in_comments[i][1] / length_comments, 2) for i in range(len(user_in_comments))])
 
 
-def task2(sc):
+def task2(sc, dataset):
     # Create RDDs for posts, comments, users and badges
-    posts_file = sc.textFile(FOLDER_NAME + POSTS_FILE_NAME)
-    posts_rdd = posts_file.map(lambda line: line.split("\t"))
 
-    badges_file = sc.textFile(FOLDER_NAME + BADGES_FILE_NAME)
-    badges_rdd = badges_file.map(lambda line: line.split("\t"))
+    posts_rdd = dataset[POSTS_FILE_NAME]
+    badges_rdd = dataset[BADGES_FILE_NAME]
+    users_rdd = dataset[USERS_FILE_NAME].filter(lambda line: not line[0] == '"Id"')
+    comments_rdd = dataset[COMMENTS_FILE_NAME].filter(lambda line: not line[0] == '"PostId"')
 
-    comment_header = sc.textFile(FOLDER_NAME + COMMENTS_FILE_NAME).first()
-    comments_file = sc.textFile(FOLDER_NAME + COMMENTS_FILE_NAME)
-    comments_no_header = comments_file.filter(lambda line: not str(line).startswith(comment_header))
-    comments = comments_no_header.map(lambda line: line.split("\t"))
-
-    users_header = sc.textFile(FOLDER_NAME + USERS_FILE_NAME).first()
-    users_file = sc.textFile(FOLDER_NAME + USERS_FILE_NAME)
-    users_no_header = users_file.filter(lambda line: not str(line).startswith(users_header))
-    users_rdd = users_no_header.map(lambda line: line.split("\t"))
-
+    # Line[1] is PostTypeId. 1 for questions, 2 for answers.
     questions = posts_rdd.filter(lambda line: line[1] == "1")
     answers = posts_rdd.filter(lambda line: line[1] == "2")
 
     print("Questions: {}".format(questions.count()))
     print("Answers: {}".format(answers.count()))
-    print("Comments: {}\n".format(comments.count()))
+    print("Comments: {}\n".format(comments_rdd.count()))
 
     # Decode Q and A's with base64 decoding and strip strings of HTML tags.
     decoded_answers = answers.map(lambda line: str(base64.b64decode(line[5]), "utf-8")).map(
         lambda line: line.replace("<p>", " ").replace("</p>", " ").replace("&#xA;", " "))
     decoded_questions = questions.map(lambda line: str(base64.b64decode(line[5]), "utf-8")).map(
         lambda line: line.replace("<p>", " ").replace("</p>", " ").replace("&#xA;", " "))
-    decoded_comments = comments.map(lambda line: str(base64.b64decode(line[2]), "utf-8"))
+    decoded_comments = comments_rdd.map(lambda line: str(base64.b64decode(line[2]), "utf-8"))
 
     answer_length = decoded_answers.map(lambda line: len(line))
     question_length = decoded_questions.map(lambda line: len(line))
@@ -85,9 +71,12 @@ def task2(sc):
         lambda a, b: a if str_to_time(a[2]) > str_to_time(b[2]) else b)
     oldest_question = questions.reduce(
         lambda a, b: a if str_to_time(a[2]) < str_to_time(b[2]) else b)
-
-    print("Newest question: {}".format(newest_question[2]))
-    print("Oldest question: {}\n".format(oldest_question[2]))
+    newest_questioner_name = users_rdd.filter(
+        lambda user: user[0] == newest_question[6]).collect()[0]
+    oldest_questioner_name = users_rdd.filter(
+        lambda user: user[0] == oldest_question[6]).collect()[0]
+    print("Newest question: {} by {}".format(newest_question[2], newest_questioner_name[3]))
+    print("Oldest question: {} by {}\n".format(oldest_question[2], oldest_questioner_name[3]))
 
     # Task 2.3 Find the ids of users who wrote the greatest number of answers and questions. Ignore
     # the user with OwnerUserId equal to -1
@@ -118,4 +107,4 @@ def task2(sc):
     # Task 2.6: Calculate the entropy of id of users (that is UserId column from comments data) who
     # wrote one or more comments.
 
-    print("\nEntropy: {}".format(round(entropy(comments), 3)))
+    print("\nEntropy: {}".format(round(entropy(comments_rdd), 3)))

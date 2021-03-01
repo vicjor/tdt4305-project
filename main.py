@@ -4,24 +4,43 @@ from task3 import task3
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
 import sys
-
-# arg = sys.argv.pop()
-# print(arg)
+from sys import argv
+import argparse
+from constants import *
 
 
 def init_spark():
-    spark = SparkSession.builder.appName("Big Data Project 2021").getOrCreate()
+    spark = SparkSession.builder.master(
+        "local[*]").appName("Big Data Project 2021").getOrCreate()
     sc = spark.sparkContext
+    sc.setLogLevel("WARN")
     return spark, sc
 
 
-if __name__ == "__main__":
+def main():
+    # Use --input_path as input argument to program
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_path", "-ip", type=str, default=None)
+    args = vars(parser.parse_args())
+    dataset_path = args["input_path"]
+
     spark, sc = init_spark()
-    while True:
-        task = input("\nWhich task do you want to run? (1-3) ")
-        if task == "1":
-            task1(sc)
-        elif task == "2":
-            task2(sc)
-        elif task == "3":
-            task3(spark, sc)
+
+    dataset = {}
+    for data in DATASET_FILES:
+        rdd = sc.textFile(dataset_path + "/" + data).map(lambda line: line.split("\t"))
+        dataset[data] = rdd
+
+    task1(sc, dataset)
+    task2(sc, dataset)
+    task3(spark, sc, dataset)
+    # try:
+    #     graph = spark.read.csv("graph.csv")
+    #     print("First five rows of graph: ")
+    #     print(graph.take(5))
+    # except:
+    #     print("\nFile not found.\n")
+
+
+if __name__ == "__main__":
+    main()

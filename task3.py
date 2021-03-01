@@ -1,41 +1,20 @@
 from constants import *
 from pyspark.sql.types import ArrayType, StructField, StructType, StringType, IntegerType, DecimalType
-
-# Create a graph of posts and comments.
-# Nodes are users, and there is an edge from node 𝑖 to node 𝑗 if 𝑖 wrote a comment for 𝑗’s post.
-# Each edge has a weight 𝑤𝑖𝑗 that is the number of times 𝑖 has commented a post by 𝑗
+from pyspark.sql import Row
+import os
 
 
-class Node:
-    def __init__(self, user) -> None:
-        self.user1 = int(user)
+def task3(spark, sc, dataset):
+    # Task 3.1:
+    # Create a graph of posts and comments.
+    # Nodes are users, and there is an edge from node 𝑖 to node 𝑗 if 𝑖 wrote a comment for 𝑗’s post.
+    # Each edge has a weight 𝑤𝑖𝑗 that is the number of times 𝑖 has commented a post by 𝑗
 
-    def increment_weight(self):
-        self.weight += 1
-
-    def set_user2(self, user2):
-        self.user2 = int(user2)
-        self.weight = 1
-
-    def get_weight(self):
-        return self.weight
-
-    def get_user1(self):
-        return self.user
-
-    def get_user2(self):
-        return self.user2
-
-
-def task3(spark, sc):
-    posts_file = sc.textFile(FOLDER_NAME + POSTS_FILE_NAME)
-    posts_rdd = posts_file.map(lambda line: line.split(
-        "\t")).filter(lambda post: post[0] != '"Id"')
-
-    comments_file = sc.textFile(FOLDER_NAME + COMMENTS_FILE_NAME)
-    # comments = (PostId, UserId)
-    comments = comments_file.map(lambda line: line.split(
-        "\t")).filter(lambda comment: comment[0] != '"PostId"').map(lambda comment: (comment[0], comment[4]))
+    posts_rdd = dataset[POSTS_FILE_NAME]
+    users_rdd = dataset[USERS_FILE_NAME].filter(lambda line: not line[0] == '"Id"')
+    # Comments: (PostId, UserId)
+    comments_rdd = dataset[COMMENTS_FILE_NAME].filter(
+        lambda comment: comment[0] != '"PostId"').map(lambda comment: (comment[0], comment[4]))
 
     # CommentCount is col no. 11 in csv
     # Filter all posts without comments, map to (PostId, OwnerUserId)
@@ -43,44 +22,40 @@ def task3(spark, sc):
         lambda post: (post[0], post[6]))
 
     # (PostId, (OwnerUserId, CommentUserId))
-    posts_and_comment = comments.join(posts_with_comments)
+    posts_and_comment = comments_rdd.join(posts_with_comments)
 
     # (CommentUserId, OwnerUserId)
     commentid_ownerid = posts_and_comment.map(lambda post: (post[1][0], post[1][1]))
 
     # Add weight (count comments from i to j) :     (CommentUserId, (OwnerUserId, Weight))
-    graph = commentid_ownerid.map(lambda row: (
+    temp_graph = commentid_ownerid.map(lambda row: (
         row, 1)).reduceByKey(lambda a, b: a+b)
 
+    # Task: 3.2 Convert the result of the previous step into a Spark DataFrame (DF) and answer the following subtasks using DataFrame API, namely using Spark SQL
+
+    graph = temp_graph.map(lambda row: (row[0][0], row[0][1], row[1]))
     print("\nFirst 10 edges in graph: {}\n".format(graph.take(10)))
 
-    # Convert the result of the previous step into a Spark DataFrame (DF) and answer the following subtasks using DataFrame API, namely using Spark SQL
-
-    temp_graph = graph.map(lambda row: (row[0][0], row[0][1], row[1]))
-    print(temp_graph.take(1))
+    # DF schema to include name of columns
     schema = StructType([
         StructField('CommentOwnerId', StringType(), False),
         StructField('PostOwnerId', StringType(), False),
         StructField('Weight', IntegerType(), False),
     ])
-    graphDF = spark.createDataFrame(temp_graph, schema)
+    graphDF = spark.createDataFrame(graph, schema)
     graphDF.createOrReplaceTempView("users")
-    print(spark.sql("SELECT * from users LIMIT 10").show())
+    spark.sql("SELECT * from users LIMIT 10").show()
 
     # Task 3.3 Find the user ids of top 10 users who wrote the most comments
 
-    print(spark.sql("SELECT CommentOwnerId, SUM(Weight) as Amount_of_comments FROM users GROUP BY CommentOwnerId ORDER BY Amount_of_comments DESC LIMIT 10").show())
+    spark.sql("SELECT CommentOwnerId, SUM(Weight) as Amount_of_comments FROM users GROUP BY CommentOwnerId ORDER BY Amount_of_comments DESC LIMIT 10").show()
 
     # Task 3.4 Find the display names of top 10 users who their posts received the greatest number
     # of comments.
 
     # First dataframe
-    userIds_with_most_comments = spark.sql("SELECT PostOwnerId, SUM(Weight) as Amount_of_comments_received FROM users GROUP BY PostOwnerId ORDER BY Amount_of_comments_received DESC LIMIT 10")
-
-    users_header = sc.textFile(FOLDER_NAME + USERS_FILE_NAME).first()
-    users_file = sc.textFile(FOLDER_NAME + USERS_FILE_NAME)
-    users_no_header = users_file.filter(lambda line: not str(line).startswith(users_header))
-    users_rdd = users_no_header.map(lambda line: line.split("\t"))
+    userIds_with_most_comments = spark.sql(
+        "SELECT PostOwnerId, SUM(Weight) as Amount_of_comments_received FROM users GROUP BY PostOwnerId ORDER BY Amount_of_comments_received DESC LIMIT 10")
 
     users = users_rdd.map(lambda x: (x[0], x[3]))
     schemaUsers = StructType([
@@ -92,10 +67,19 @@ def task3(spark, sc):
     usersDF = spark.createDataFrame(users, schemaUsers)
 
     # First dataframe loaded into second dataframe
-    resultDF = userIds_with_most_comments.join(usersDF, userIds_with_most_comments.PostOwnerId == usersDF.UserId).drop(userIds_with_most_comments.PostOwnerId)
+    resultDF = userIds_with_most_comments.join(
+        usersDF, userIds_with_most_comments.PostOwnerId == usersDF.UserId).drop(userIds_with_most_comments.PostOwnerId)
     resultDF.show()
 
+    # Save the DF containing the information for the graph of posts and comments (from subtask 2)
+    # into a persistence format (like CSV) on your filesystem so that later could be loaded back into a Spark application’s workspace
 
+    try:
+        graphDF.repartition(1).write.option("header", "true").format(
+            "com.databricks.spark.csv").save("graph.csv")
+        # graphDF.repartition(1).write.format('com.databricks.spark.csv').save(
+        #     os.getcwd()+"/graph.csv", header='true')
+        print("The graph has been saved as 'graph.csv' in {}".format(os.getcwd()))
+    except:
+        print("Tried to save 'graph.csv' to {} but file already exists.".format(os.getcwd()))
     return
-
-# (user_I, , user_J, #comments)
