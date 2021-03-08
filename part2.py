@@ -1,5 +1,6 @@
 
-from pyspark.sql.functions import lower, col, unbase64, translate, regexp_replace, split
+from pyspark.sql.functions import lower, col, unbase64, translate, regexp_replace, split, array_remove, expr
+from pyspark.ml.feature import StopWordsRemover
 from main import init_spark
 from constants import *
 import os
@@ -31,11 +32,25 @@ def graph_of_terms(post):
     # Remove all punctuations
     post = post.withColumn("Body", translate(post.Body, punc, ''))
 
+    # Remove all the 'DOT' characters from the start or the end of each token
+    post = post.withColumn("Body", translate(post.Body, '.', ''))
+
     # Tokenise by splitting at whitespace
     post = post.withColumn("Body", split(post.Body, " "))
 
     # Remove all tokens < 3 long
-    post = post.withColumn("Body", post.Body)
+    post = post.withColumn("Body", expr("filter(Body, x -> not(length(x) < 3))"))
+
+    # Add the given stop words to the list of stop words
+
+    print("Preparing stopwords...")
+    with open('stopwords.txt') as f:
+        stopwords = [line.rstrip() for line in f]
+
+    # Remove the stopwords from the sequence of tokens (final step)
+    remover = StopWordsRemover(inputCol="Body", outputCol="Cleansed", stopWords=stopwords)
+    post = remover.transform(post).select("Cleansed")
+
 
     print(post.collect())
     
