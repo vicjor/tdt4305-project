@@ -1,3 +1,9 @@
+
+from pyspark.sql.functions import lower, col, unbase64, translate, regexp_replace, split
+from main import init_spark
+from constants import *
+import os
+
 """
 You should take the following steps to construct the term graph for the input document:
 1. Turn all the characters to lower case
@@ -11,27 +17,38 @@ stage should have a sequence of tokens
 document.)
 """
 
-from pyspark.sql.functions import lower, col, unbase64
-import base64
-from main import init_spark
-from constants import *
-import os
+# Punctuation except '.'
+punc = '!"#$%&\'()*+,-/:;<=>?@[\\]^_`{|}~\t\n'
 
+def graph_of_terms(post):
+    # Lowercase all chars
+    post = post.withColumn("Body", lower(unbase64(post.Body)))
 
-def graph_of_terms(postdf):
-    decoded_post = postdf.map(lambda line: str(base64.b64decode(line[5]), "utf-8"))
-    decoded_post.withColumn("Body", lower(postdf.Body))
+    # Replace HTML LF tag
+    post = post.withColumn("Body", regexp_replace(post.Body, "&#xa;", ' '))
+    # Replace HTML tags
+    post = post.withColumn("Body", regexp_replace(post.Body, "<[^>]*>", ''))
+    # Remove all punctuations
+    post = post.withColumn("Body", translate(post.Body, punc, ''))
+
+    # Tokenise by splitting at whitespace
+    post = post.withColumn("Body", split(post.Body, " "))
+
+    # Remove all tokens < 3 long
+    post = post.withColumn("Body", post.Body)
+
+    print(post.collect())
+    
     return
 
 
 def main():
     _id = 9
     spark, sc = init_spark()
-    posts_df = spark.read.option("header", "true").option("delimiter", "\t").csv(os.getcwd() + "/data/posts.csv.gz")
-    post = posts_df.filter(posts_df.Id == "9").drop("OwnerUserId", "PostTypeId", "CreationDate","Title", "Tags", "CommentCount", "ClosedDate","FavoriteCount","LastActivityDate","ViewCount","AnswerCount","Score","Id")
-    # Decode and lower characters
-    post.withColumn("Body", lower(unbase64(post.Body)))
-    print(post)
+    postsdf = spark.read.option("header", "true").option("delimiter", "\t").csv(os.getcwd() + "/data/posts.csv.gz")
+    post = postsdf.filter(postsdf.Id == "9").drop("OwnerUserId", "PostTypeId", "CreationDate","Title", "Tags", "CommentCount", "ClosedDate","FavoriteCount","LastActivityDate","ViewCount","AnswerCount","Score","Id")
+    graph_of_terms(post)
+    
     return
 
 
