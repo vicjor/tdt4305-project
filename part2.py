@@ -1,9 +1,9 @@
 
 from pyspark.sql.functions import lower, col, unbase64, translate, regexp_replace, split, array_remove, expr
-from pyspark.ml.feature import StopWordsRemover
 from main import init_spark
 from constants import *
 import os
+from itertools import permutations
 
 """
 You should take the following steps to construct the term graph for the input document:
@@ -17,6 +17,27 @@ stage should have a sequence of tokens
 7. Remove the stopwords from the sequence of tokens (The list of stopwords is available at the end of this
 document.)
 """
+class Window:
+    def __init__(self, lst) -> None:
+        self.lst = lst
+        self.window = lst[0:5]
+        self.lower = 0
+        self.upper = 5
+
+    def slide(self):
+        if self.upper < len(self.lst):
+            self.lower += 1
+            self.upper += 1
+            self.window = self.lst[self.lower:self.upper]
+            return True
+        else:
+            return False
+    
+    def get_permutations(self):
+        return permutations(self.window)
+
+
+        
 
 # Punctuation except '.'
 punc = '!"#$%&\'()*+,-/:;<=>?@[\\]^_`{|}~\t\n'
@@ -45,17 +66,27 @@ def graph_of_terms(post):
 
     print("Preparing stopwords...")
     with open('stopwords.txt') as f:
-        stopwords = [line.rstrip() for line in f]
+        stopwords = [line.rstrip().replace("'","") for line in f]
 
     # Remove the stopwords from the sequence of tokens (final step)
-    remover = StopWordsRemover(inputCol="Body", outputCol="Cleansed", stopWords=stopwords)
-    post = remover.transform(post).select("Cleansed")
-
-
-    print(post.collect())
+    tokens = post.select("Body").rdd.flatMap(lambda token: token).collect()[0]
+    for token in tokens:
+        if token in stopwords:
+            tokens.remove(token)
+    # List -> set -> list to have unique tokens in list
+    unique_tokens =  list(set(tokens))
+    window = Window(unique_tokens)
+    print(window.window)
+    window.slide()
+    p = window.get_permutations()
     
+
+
     return
 
+
+
+    
 
 def main():
     _id = 9
