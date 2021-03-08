@@ -23,6 +23,7 @@ class Window:
         self.window = lst[0:5]
         self.lower = 0
         self.upper = 5
+        self.S = []
 
     def slide(self):
         if self.upper < len(self.lst):
@@ -34,8 +35,16 @@ class Window:
             return False
     
     def get_permutations(self):
-        return permutations(self.window)
+        perm = permutations(self.window)
+        for p in perm:
+            self.S.append(p)
+        
 
+    def run(self):
+        self.get_permutations()
+        while self.slide():
+            self.get_permutations()
+        return self.S
 
         
 
@@ -76,9 +85,10 @@ def graph_of_terms(post):
     # List -> set -> list to have unique tokens in list
     unique_tokens =  list(set(tokens))
     window = Window(unique_tokens)
-    print(window.window)
-    window.slide()
-    p = window.get_permutations()
+
+    # Get a list of 5-tuples containing all permutations of each possible window for the set of tokens
+    permutations = window.run()
+
     
 
 
