@@ -1,4 +1,5 @@
 
+import argparse
 from pyspark.sql.functions import lower, col, unbase64, translate, regexp_replace, split, array_remove, expr
 from pyspark.sql import SQLContext
 from main import init_spark
@@ -35,7 +36,6 @@ class Window:
         self.lower = 0
         self.upper = 5
         self.S = []
-        print(self.lst)
 
     def slide(self):
         if self.upper < len(self.lst):
@@ -136,22 +136,30 @@ def graph_of_terms(post, sc):
 
     g = GraphFrame(v, e)
     g.degrees.show()
+    print("Calculating pagerank...")
     results = g.pageRank(tol=0.0001, resetProbability=0.15)
     results.vertices.select("term", "pagerank").sort(
-        "pagerank", ascending=False).show()
+        "pagerank", ascending=False).limit(10).show()
 
     return
 
 
 def main():
-    _id = 14
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_path", "-ip", type=str, default=None)
+    parser.add_argument("--post_id", "-id", type=str, default="14")
+    args = vars(parser.parse_args())
+    dataset_path = args["input_path"]
+    _id = args["post_id"]
+
     spark, sc = init_spark()
+
     postsdf = spark.read.option("header", "true").option(
-        "delimiter", "\t").csv(os.getcwd() + "/data/posts.csv.gz")
+        "delimiter", "\t").csv(dataset_path + "/posts.csv.gz")
 
     # Drop all columns but 'Body'
-    post = postsdf.filter(postsdf.Id == "14").drop("OwnerUserId", "PostTypeId", "CreationDate", "Title", "Tags",
-                                                   "CommentCount", "ClosedDate", "FavoriteCount", "LastActivityDate", "ViewCount", "AnswerCount", "Score", "Id")
+    post = postsdf.filter(postsdf.Id == _id).drop("OwnerUserId", "PostTypeId", "CreationDate", "Title", "Tags",
+                                                  "CommentCount", "ClosedDate", "FavoriteCount", "LastActivityDate", "ViewCount", "AnswerCount", "Score", "Id")
     graph_of_terms(post, sc)
 
     return
