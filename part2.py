@@ -117,11 +117,11 @@ def graph_of_terms(post, sc):
     sqlContext = SQLContext(sc)
     # Turn list of nodes and edges into dataframes
     v = sqlContext.createDataFrame(vertices, ["id", "term"])
-    e = sqlContext.createDataFrame(edges, ["e1", "e2", "weight"])
+    e = sqlContext.createDataFrame(edges, ["src", "dst", "relationship"])
 
     g = GraphFrame(v, e)
-    # results = g.pageRank(tol=0.0001, resetProbability=0.15)
-    # results.vertices.select("id", "pagerank").show()
+    results = g.pageRank(tol=0.0001, resetProbability=0.15)
+    results.vertices.select("id", "pagerank").show()
     # print(results)
     return
 
