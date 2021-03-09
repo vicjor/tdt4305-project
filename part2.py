@@ -17,6 +17,14 @@ stage should have a sequence of tokens
 7. Remove the stopwords from the sequence of tokens (The list of stopwords is available at the end of this
 document.)
 """
+
+
+"""
+Initialize a Window class with Window(token_list).
+Use Window.run() to get a list of tuples containing all permutations. 
+"""
+
+
 class Window:
     def __init__(self, lst) -> None:
         self.lst = lst
@@ -33,12 +41,11 @@ class Window:
             return True
         else:
             return False
-    
+
     def get_permutations(self):
         perm = permutations(self.window)
         for p in perm:
             self.S.append(p)
-        
 
     def run(self):
         self.get_permutations()
@@ -46,10 +53,10 @@ class Window:
             self.get_permutations()
         return self.S
 
-        
 
 # Punctuation except '.'
 punc = '!"#$%&\'()*+,-/:;<=>?@[\\]^_`{|}~\t\n'
+
 
 def graph_of_terms(post):
     # Lowercase all chars
@@ -69,13 +76,14 @@ def graph_of_terms(post):
     post = post.withColumn("Body", split(post.Body, " "))
 
     # Remove all tokens < 3 long
-    post = post.withColumn("Body", expr("filter(Body, x -> not(length(x) < 3))"))
+    post = post.withColumn("Body", expr(
+        "filter(Body, x -> not(length(x) < 3))"))
 
     # Add the given stop words to the list of stop words
 
     print("Preparing stopwords...")
     with open('stopwords.txt') as f:
-        stopwords = [line.rstrip().replace("'","") for line in f]
+        stopwords = [line.rstrip().replace("'", "") for line in f]
 
     # Remove the stopwords from the sequence of tokens (final step)
     tokens = post.select("Body").rdd.flatMap(lambda token: token).collect()[0]
@@ -83,28 +91,27 @@ def graph_of_terms(post):
         if token in stopwords:
             tokens.remove(token)
     # List -> set -> list to have unique tokens in list
-    unique_tokens =  list(set(tokens))
+    unique_tokens = list(set(tokens))
     window = Window(unique_tokens)
 
     # Get a list of 5-tuples containing all permutations of each possible window for the set of tokens
     permutations = window.run()
-
-    
-
+    print(permutations)
 
     return
 
 
-
-    
-
 def main():
     _id = 9
     spark, sc = init_spark()
-    postsdf = spark.read.option("header", "true").option("delimiter", "\t").csv(os.getcwd() + "/data/posts.csv.gz")
-    post = postsdf.filter(postsdf.Id == "9").drop("OwnerUserId", "PostTypeId", "CreationDate","Title", "Tags", "CommentCount", "ClosedDate","FavoriteCount","LastActivityDate","ViewCount","AnswerCount","Score","Id")
+    postsdf = spark.read.option("header", "true").option(
+        "delimiter", "\t").csv(os.getcwd() + "/data/posts.csv.gz")
+
+    # Drop all columns but 'Body'
+    post = postsdf.filter(postsdf.Id == "9").drop("OwnerUserId", "PostTypeId", "CreationDate", "Title", "Tags",
+                                                  "CommentCount", "ClosedDate", "FavoriteCount", "LastActivityDate", "ViewCount", "AnswerCount", "Score", "Id")
     graph_of_terms(post)
-    
+
     return
 
 
