@@ -35,6 +35,7 @@ class Window:
         self.lower = 0
         self.upper = 5
         self.S = []
+        print(self.lst)
 
     def slide(self):
         if self.upper < len(self.lst):
@@ -46,11 +47,11 @@ class Window:
             return False
 
     def get_combinations(self):
-        _ids = [x[0] for x in self.window]
-        perm = combinations(_ids, 2)
-        for p in perm:
-            self.S.append(p)
+        comb = combinations(self.window, 2)
+        for c in comb:
+            self.S.append(c)
 
+    # Slide window and add combinations to list until window cannot move more
     def run(self):
         self.get_combinations()
         while self.slide():
@@ -90,51 +91,67 @@ def graph_of_terms(post, sc):
         stopwords = [line.rstrip().replace("'", "") for line in f]
 
     # Remove the stopwords from the sequence of tokens (final step)
-    tokens = list(set(post.select("Body").rdd.flatMap(
+    unique_tokens = list(set(post.select("Body").rdd.flatMap(
         lambda token: token).collect()[0]))
+    tokens = post.select("Body").rdd.flatMap(
+        lambda token: token).collect()[0]
 
     # Created a new list of tokens excluding stopwords
     vertices = []
+    d = {}
     i = 0
-    for token in tokens:
+    for token in unique_tokens:
         if token not in stopwords:
             i += 1
             vertices.append((i, token))
-    window = Window(vertices)
+            d[token] = i
+
+    id_tokens = []
+    for token in tokens:
+        if token not in stopwords:
+            id_tokens.append(d[token])
+
+    window = Window(id_tokens)
 
     # Get a list of tuples containing all combinations of each possible window for the set of tokens. Remove duplicates.
     graph = list(set(window.run()))
+    # print(graph)
 
     # At this point our graph only contains edge (e1 -> e2), not (e2 -> e1)
     # Create a new list to add edges (e2 -> e1)
+    # We also remove loops
     edges = []
     for tup in graph:
-        edges.append((tup[0], tup[1], 1))
-        edges.append((tup[1], tup[0], 1))
-    print("VERTCICES", vertices, "\n\n")
-    print("Edges", edges, "\n\n")
+        if tup[0] != tup[1]:
+            edges.append((tup[0], tup[1]))
+            edges.append((tup[1], tup[0]))
+    # Remove all duplicate edges
+    edges = list(set(edges))
+
     # Initiate SQLContext with SparkContext
     sqlContext = SQLContext(sc)
     # Turn list of nodes and edges into dataframes
     v = sqlContext.createDataFrame(vertices, ["id", "term"])
-    e = sqlContext.createDataFrame(edges, ["src", "dst", "relationship"])
+    e = sqlContext.createDataFrame(edges, ["src", "dst"])
 
     g = GraphFrame(v, e)
+    g.degrees.show()
     results = g.pageRank(tol=0.0001, resetProbability=0.15)
-    results.vertices.select("id", "pagerank").show()
-    # print(results)
+    results.vertices.select("term", "pagerank").sort(
+        "pagerank", ascending=False).show()
+
     return
 
 
 def main():
-    _id = 9
+    _id = 14
     spark, sc = init_spark()
     postsdf = spark.read.option("header", "true").option(
         "delimiter", "\t").csv(os.getcwd() + "/data/posts.csv.gz")
 
     # Drop all columns but 'Body'
-    post = postsdf.filter(postsdf.Id == "9").drop("OwnerUserId", "PostTypeId", "CreationDate", "Title", "Tags",
-                                                  "CommentCount", "ClosedDate", "FavoriteCount", "LastActivityDate", "ViewCount", "AnswerCount", "Score", "Id")
+    post = postsdf.filter(postsdf.Id == "14").drop("OwnerUserId", "PostTypeId", "CreationDate", "Title", "Tags",
+                                                   "CommentCount", "ClosedDate", "FavoriteCount", "LastActivityDate", "ViewCount", "AnswerCount", "Score", "Id")
     graph_of_terms(post, sc)
 
     return
