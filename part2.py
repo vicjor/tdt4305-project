@@ -1,9 +1,12 @@
 
 from pyspark.sql.functions import lower, col, unbase64, translate, regexp_replace, split, array_remove, expr
+from pyspark.sql import SQLContext
 from main import init_spark
 from constants import *
 import os
-from itertools import permutations
+from itertools import permutations, combinations
+from graphframes import *
+
 
 """
 You should take the following steps to construct the term graph for the input document:
@@ -42,15 +45,16 @@ class Window:
         else:
             return False
 
-    def get_permutations(self):
-        perm = permutations(self.window)
+    def get_combinations(self):
+        _ids = [x[0] for x in self.window]
+        perm = combinations(_ids, 2)
         for p in perm:
             self.S.append(p)
 
     def run(self):
-        self.get_permutations()
+        self.get_combinations()
         while self.slide():
-            self.get_permutations()
+            self.get_combinations()
         return self.S
 
 
@@ -58,7 +62,7 @@ class Window:
 punc = '!"#$%&\'()*+,-/:;<=>?@[\\]^_`{|}~\t\n'
 
 
-def graph_of_terms(post):
+def graph_of_terms(post, sc):
     # Lowercase all chars
     post = post.withColumn("Body", lower(unbase64(post.Body)))
 
@@ -86,18 +90,39 @@ def graph_of_terms(post):
         stopwords = [line.rstrip().replace("'", "") for line in f]
 
     # Remove the stopwords from the sequence of tokens (final step)
-    tokens = post.select("Body").rdd.flatMap(lambda token: token).collect()[0]
+    tokens = list(set(post.select("Body").rdd.flatMap(
+        lambda token: token).collect()[0]))
+
+    # Created a new list of tokens excluding stopwords
+    vertices = []
+    i = 0
     for token in tokens:
-        if token in stopwords:
-            tokens.remove(token)
-    # List -> set -> list to have unique tokens in list
-    unique_tokens = list(set(tokens))
-    window = Window(unique_tokens)
+        if token not in stopwords:
+            i += 1
+            vertices.append((i, token))
+    window = Window(vertices)
 
-    # Get a list of 5-tuples containing all permutations of each possible window for the set of tokens
-    permutations = window.run()
-    print(permutations)
+    # Get a list of tuples containing all combinations of each possible window for the set of tokens. Remove duplicates.
+    graph = list(set(window.run()))
 
+    # At this point our graph only contains edge (e1 -> e2), not (e2 -> e1)
+    # Create a new list to add edges (e2 -> e1)
+    edges = []
+    for tup in graph:
+        edges.append((tup[0], tup[1], 1))
+        edges.append((tup[1], tup[0], 1))
+    print("VERTCICES", vertices, "\n\n")
+    print("Edges", edges, "\n\n")
+    # Initiate SQLContext with SparkContext
+    sqlContext = SQLContext(sc)
+    # Turn list of nodes and edges into dataframes
+    v = sqlContext.createDataFrame(vertices, ["id", "term"])
+    e = sqlContext.createDataFrame(edges, ["e1", "e2", "weight"])
+
+    g = GraphFrame(v, e)
+    # results = g.pageRank(tol=0.0001, resetProbability=0.15)
+    # results.vertices.select("id", "pagerank").show()
+    # print(results)
     return
 
 
@@ -110,7 +135,7 @@ def main():
     # Drop all columns but 'Body'
     post = postsdf.filter(postsdf.Id == "9").drop("OwnerUserId", "PostTypeId", "CreationDate", "Title", "Tags",
                                                   "CommentCount", "ClosedDate", "FavoriteCount", "LastActivityDate", "ViewCount", "AnswerCount", "Score", "Id")
-    graph_of_terms(post)
+    graph_of_terms(post, sc)
 
     return
 

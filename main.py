@@ -14,6 +14,7 @@ def init_spark():
         "local[*]").appName("Big Data Project 2021").getOrCreate()
     sc = spark.sparkContext
     sc.setLogLevel("WARN")
+    sc.addPyFile("graphframes-0.8.1-spark3.0-s_2.12.jar")
     return spark, sc
 
 
@@ -28,7 +29,8 @@ def main():
 
     dataset = {}
     for data in DATASET_FILES:
-        rdd = sc.textFile(dataset_path + "/" + data).map(lambda line: line.split("\t"))
+        rdd = sc.textFile(dataset_path + "/" +
+                          data).map(lambda line: line.split("\t"))
         dataset[data] = rdd
 
     task1(dataset)
