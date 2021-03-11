@@ -146,7 +146,8 @@ def graph_of_terms(post, sc):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path", "-ip", type=str, default=None)
+    parser.add_argument("--input_path", "-ip", type=str,
+                        default=os.getenv("PWD")+"/data")
     parser.add_argument("--post_id", "-id", type=str, default="14")
     args = vars(parser.parse_args())
     dataset_path = args["input_path"]
