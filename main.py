@@ -69,7 +69,6 @@ class Window:
         return self.S
 
 
-# Punctuation except '.'
 
 
 def graph_of_terms(post, sc):
@@ -107,8 +106,8 @@ def graph_of_terms(post, sc):
     tokens = post.select("Body").rdd.flatMap(
         lambda token: token).collect()[0]
 
-    # Created a new list of tokens excluding stopwords
     print("Generating nodes...")
+    # Created a new list of tokens excluding stopwords
     nodes = []
     d = {}  # Dict used to save ID for each token in nodes
     i = 0
@@ -128,7 +127,6 @@ def graph_of_terms(post, sc):
 
     # Get a list of tuples containing all combinations of each possible window for the set of tokens. Remove duplicates.
     graph = list(set(window.run()))
-    # print(graph)
 
     # At this point our graph only contains edge (e1 -> e2), not (e2 -> e1)
     # Create a new list to add edges (e2 -> e1)
